@@ -1,12 +1,49 @@
-import { createContext, useContext, useState } from "react";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
 import initialTasks from "../data/initialTasks";
 
 const TaskContext = createContext();
 
-export const TaskProvider = ({ children }) => {
-  const [tasks, setTasks] = useState(initialTasks);
+const STORAGE_KEY = "taskflow_tasks";
 
-  // Add Task
+const loadTasks = () => {
+  try {
+    const savedTasks = localStorage.getItem(STORAGE_KEY);
+
+    if (savedTasks !== null) {
+      const parsedTasks = JSON.parse(savedTasks);
+
+      if (Array.isArray(parsedTasks)) {
+        return parsedTasks;
+      }
+    }
+  } catch (error) {
+    console.error("Could not load saved tasks:", error);
+  }
+
+  return initialTasks;
+};
+
+export const TaskProvider = ({ children }) => {
+  const [tasks, setTasks] = useState(loadTasks);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(tasks)
+      );
+    } catch (error) {
+      console.error("Could not save tasks:", error);
+    }
+  }, [tasks]);
+
   const addTask = (task) => {
     const newTask = {
       ...task,
@@ -14,34 +51,50 @@ export const TaskProvider = ({ children }) => {
       raisedDate: new Date().toISOString(),
     };
 
-    setTasks((prevTasks) => [newTask, ...prevTasks]);
+    setTasks((previousTasks) => [
+      newTask,
+      ...previousTasks,
+    ]);
+
+    return newTask;
   };
 
-  // Delete Task
   const deleteTask = (id) => {
-    setTasks((prevTasks) =>
-      prevTasks.filter((task) => task.id !== Number(id))
+    setTasks((previousTasks) =>
+      previousTasks.filter(
+        (task) => task.id !== Number(id)
+      )
     );
   };
 
-  // Update Task
   const updateTask = (id, updatedTask) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
+    setTasks((previousTasks) =>
+      previousTasks.map((task) =>
         task.id === Number(id)
-          ? { ...task, ...updatedTask }
+          ? {
+              ...task,
+              ...updatedTask,
+              id: task.id,
+            }
           : task
       )
     );
   };
 
-  // Change Status
   const changeStatus = (id, status) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
+    setTasks((previousTasks) =>
+      previousTasks.map((task) =>
         task.id === Number(id)
           ? { ...task, status }
           : task
+      )
+    );
+  };
+
+  const clearCompletedTasks = () => {
+    setTasks((previousTasks) =>
+      previousTasks.filter(
+        (task) => task.status !== "Closed"
       )
     );
   };
@@ -54,6 +107,7 @@ export const TaskProvider = ({ children }) => {
         deleteTask,
         updateTask,
         changeStatus,
+        clearCompletedTasks,
       }}
     >
       {children}
@@ -61,4 +115,6 @@ export const TaskProvider = ({ children }) => {
   );
 };
 
-export const useTasks = () => useContext(TaskContext);
+export const useTasks = () => {
+  return useContext(TaskContext);
+};

@@ -1,146 +1,220 @@
+
 import { useState } from "react";
+
+const getDefaultForm = () => ({
+  header: "",
+  description: "",
+  priority: "Medium",
+  category: "Academic",
+  dueDate: new Date().toLocaleDateString("en-CA"),
+  status: "Raised",
+});
 
 const TaskForm = ({
   initialData,
   onSubmit,
   buttonText = "Create Task",
 }) => {
+  const [formData, setFormData] = useState(() => ({
+    ...getDefaultForm(),
+    ...initialData,
+  }));
 
-  const [formData, setFormData] = useState(
-    initialData || {
-      header: "",
-      description: "",
-      priority: "Medium",
-      category: "Academic",
-      dueDate: "2026-08-28",
-      status: "Raised",
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+
+    if (error) {
+      setError("");
     }
-  );
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
 
-    onSubmit(formData);
+    const header = formData.header.trim();
+    const description = formData.description.trim();
+
+    if (!header) {
+      setError("Please enter a task title.");
+      return;
+    }
+
+    if (header.length < 3) {
+      setError("The task title must contain at least 3 characters.");
+      return;
+    }
+
+    if (header.length > 100) {
+      setError("The task title cannot exceed 100 characters.");
+      return;
+    }
+
+    if (!description) {
+      setError("Please enter a task description.");
+      return;
+    }
+
+    if (description.length > 1000) {
+      setError("The description cannot exceed 1000 characters.");
+      return;
+    }
+
+    if (!formData.dueDate) {
+      setError("Please select a due date.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await onSubmit({
+        ...formData,
+        header,
+        description,
+      });
+    } catch (submitError) {
+      setError("Something went wrong. Please try again.");
+      console.error(submitError);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <form
-      className="task-form"
-      onSubmit={handleSubmit}
-    >
+    <form className="task-form" onSubmit={handleSubmit}>
+      {error && (
+        <div className="login-error" role="alert">
+          ⚠ {error}
+        </div>
+      )}
 
       <div className="form-group">
-
-        <label>Task Header</label>
+        <label htmlFor="task-header">
+          Task Title *
+        </label>
 
         <input
+          id="task-header"
           type="text"
           name="header"
-          placeholder="Enter task title"
+          placeholder="e.g. Complete React assignment"
           value={formData.header}
           onChange={handleChange}
+          maxLength={100}
           required
         />
 
+        <small style={{ color: "#8994ad" }}>
+          {formData.header.length}/100 characters
+        </small>
       </div>
 
       <div className="form-group">
-
-        <label>Task Description</label>
+        <label htmlFor="task-description">
+          Task Description *
+        </label>
 
         <textarea
+          id="task-description"
           name="description"
-          rows="5"
-          placeholder="Describe your task..."
+          rows={5}
+          placeholder="Describe what needs to be done..."
           value={formData.description}
           onChange={handleChange}
+          maxLength={1000}
           required
         />
 
+        <small style={{ color: "#8994ad" }}>
+          {formData.description.length}/1000 characters
+        </small>
       </div>
 
       <div className="form-grid">
-
         <div className="form-group">
-
-          <label>Priority</label>
+          <label htmlFor="task-priority-form">
+            Priority
+          </label>
 
           <select
+            id="task-priority-form"
             name="priority"
             value={formData.priority}
             onChange={handleChange}
           >
-            <option>High</option>
-            <option>Medium</option>
-            <option>Low</option>
+            <option value="High">High Priority</option>
+            <option value="Medium">Medium Priority</option>
+            <option value="Low">Low Priority</option>
           </select>
-
         </div>
 
         <div className="form-group">
-
-          <label>Category</label>
+          <label htmlFor="task-category-form">
+            Category
+          </label>
 
           <select
+            id="task-category-form"
             name="category"
             value={formData.category}
             onChange={handleChange}
           >
-            <option>Academic</option>
-            <option>Personal</option>
+            <option value="Academic">Academic</option>
+            <option value="Personal">Personal</option>
           </select>
-
         </div>
-
       </div>
 
       <div className="form-grid">
-
         <div className="form-group">
-
-          <label>Due Date</label>
+          <label htmlFor="task-due-date">
+            Due Date *
+          </label>
 
           <input
+            id="task-due-date"
             type="date"
             name="dueDate"
             value={formData.dueDate}
             onChange={handleChange}
+            required
           />
-
         </div>
 
         <div className="form-group">
-
-          <label>Status</label>
+          <label htmlFor="task-status-form">
+            Task Status
+          </label>
 
           <select
+            id="task-status-form"
             name="status"
             value={formData.status}
             onChange={handleChange}
           >
-            <option>Raised</option>
-            <option>Pending</option>
-            <option>Closed</option>
+            <option value="Raised">Raised</option>
+            <option value="Pending">Pending</option>
+            <option value="Closed">Completed</option>
           </select>
-
         </div>
-
       </div>
 
       <button
         type="submit"
         className="primary-btn"
+        disabled={isSubmitting}
       >
-        {buttonText} →
+        {isSubmitting ? "Saving..." : `${buttonText} →`}
       </button>
-
     </form>
   );
 };
